@@ -1,0 +1,5 @@
+Bugfix
+   * Reject X.509 subjectAltName entries whose tag has the wrong
+     primitive/constructed form, for example a constructed dNSName (0xA2).
+     Such an entry was previously parsed as if it was well-formed and could
+     be matched during hostname verification. Fixes #11024.

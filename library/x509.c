@@ -1467,6 +1467,27 @@ int mbedtls_x509_parse_subject_alt_name(const mbedtls_x509_buf *san_buf,
                                         mbedtls_x509_subject_alternative_name *san)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
+    const unsigned char san_type = san_buf->tag & MBEDTLS_ASN1_TAG_VALUE_MASK;
+
+    /*
+     * The tag of each GeneralName is IMPLICIT, except directoryName whose
+     * Name is a CHOICE and therefore EXPLICITLY tagged. So otherName,
+     * x400Address, directoryName and ediPartyName must be constructed and
+     * the other types must be primitive (RFC 5280, X.690 DER).
+     */
+    if ((san_buf->tag & MBEDTLS_ASN1_TAG_CLASS_MASK) == MBEDTLS_ASN1_CONTEXT_SPECIFIC &&
+        san_type <= MBEDTLS_X509_SAN_REGISTERED_ID) {
+        const int constructed = (san_buf->tag & MBEDTLS_ASN1_CONSTRUCTED) != 0;
+        const int must_be_constructed = san_type == MBEDTLS_X509_SAN_OTHER_NAME ||
+                                        san_type == MBEDTLS_X509_SAN_X400_ADDRESS_NAME ||
+                                        san_type == MBEDTLS_X509_SAN_DIRECTORY_NAME ||
+                                        san_type == MBEDTLS_X509_SAN_EDI_PARTY_NAME;
+        if (constructed != must_be_constructed) {
+            return MBEDTLS_ERROR_ADD(MBEDTLS_ERR_X509_INVALID_EXTENSIONS,
+                                     MBEDTLS_ERR_ASN1_UNEXPECTED_TAG);
+        }
+    }
+
     switch (san_buf->tag &
             (MBEDTLS_ASN1_TAG_CLASS_MASK |
              MBEDTLS_ASN1_TAG_VALUE_MASK)) {
